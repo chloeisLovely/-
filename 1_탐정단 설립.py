@@ -4,6 +4,7 @@ import koreanize_matplotlib
 from fpdf import FPDF
 from io import BytesIO
 import base64
+import os
 
 # --- 페이지 설정 ---
 st.set_page_config(
@@ -24,14 +25,23 @@ class PDF(FPDF):
 def generate_pdf(state, chart_image):
     pdf = PDF()
     
-    # 한글 폰트 추가
+    # 한글 폰트 추가 (오류 수정)
     try:
         import koreanize_matplotlib
-        font_path = koreanize_matplotlib.get_font_path()
-        pdf.add_font('NanumGothic', '', font_path, uni=True)
-        pdf.add_font('NanumGothic', 'B', font_path, uni=True)
+        # 폰트 파일이 있는 디렉토리 경로를 가져옴
+        font_dir = os.path.dirname(koreanize_matplotlib.get_font_path())
+        
+        # 일반 폰트와 볼드 폰트의 전체 경로를 지정
+        nanum_gothic_path = os.path.join(font_dir, 'NanumGothic.ttf')
+        nanum_gothic_bold_path = os.path.join(font_dir, 'NanumGothicBold.ttf')
+
+        # FPDF에 각 폰트 스타일을 명시적으로 추가
+        pdf.add_font('NanumGothic', '', nanum_gothic_path, uni=True)
+        pdf.add_font('NanumGothic', 'B', nanum_gothic_bold_path, uni=True)
+        
     except Exception as e:
         st.error(f"한글 폰트를 로드하는 데 실패했습니다. PDF 생성이 어려울 수 있습니다. 오류: {e}")
+        # 대체 폰트 설정 (한글 깨짐)
         pdf.set_font("Arial", size=12)
 
     pdf.add_page()
@@ -171,7 +181,6 @@ with col2:
         1 if len(st.session_state.get('case2', '').strip()) > 0 else 0,
         1 if len(st.session_state.get('case3', '').strip()) > 0 else 0,
     ]
-    # 색상 값을 RGBA 튜플 형태로 변경 (0-1 범위)
     colors = [(22/255, 163/255, 74/255, 0.7), (2/255, 132/255, 199/255, 0.7), (185/255, 28/255, 28/255, 0.7)]
     
     fig, ax = plt.subplots()
@@ -191,10 +200,6 @@ st.markdown("---")
 st.header("보고서 저장")
 
 if st.button("보고서 PDF 생성"):
+    # buf의 현재 위치를 처음으로 되돌림
+    buf.seek(0)
     pdf_bytes = generate_pdf(st.session_state, buf)
-    
-    b64 = base64.b64encode(pdf_bytes).decode()
-    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{st.session_state.agency_name}_설립보고서.pdf" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1d4ed8; color: white; text-decoration: none; border-radius: 0.375rem; font-weight: bold;">📂 보고서 PDF 다운로드</a>'
-    st.markdown(href, unsafe_allow_html=True)
-    st.caption("링크를 클릭하여 지금까지 작성한 내용을 PDF 파일로 다운로드하세요.")
-
