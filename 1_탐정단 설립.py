@@ -43,7 +43,8 @@ def generate_pdf(state, fig):
     # 보고서 내용 생성 (UTF-8 인코딩 명시)
     def write_cell(font_style, text):
         pdf.set_font('NanumGothic', font_style, 12)
-        pdf.multi_cell(0, 10, text.encode('latin-1', 'replace').decode('latin-1'), border=1)
+        # 텍스트를 UTF-8로 인코딩하여 처리
+        pdf.multi_cell(0, 10, text.encode('utf-8').decode('latin-1'), border=1)
 
     pdf.set_font('NanumGothic', 'B', 24)
     pdf.cell(0, 15, '📂 데이터 탐정단 공식 설립 보고서', border=1, ln=True, align='C')
@@ -117,7 +118,7 @@ def generate_pdf(state, fig):
     finally:
         os.remove(chart_image_path) # 사용이 끝난 임시 파일을 삭제합니다.
 
-    return pdf.output(dest='S').encode('latin-1')
+    return pdf.output(dest='S')
 
 # --- 세션 상태 초기화 ---
 if 'members' not in st.session_state:
