@@ -25,8 +25,7 @@ class PDF(FPDF):
 def generate_pdf(state, chart_image):
     pdf = PDF()
     
-    # --- 한글 폰트 추가 (오류 수정) ---
-    # 앱과 함께 배포된 폰트 파일을 직접 사용하도록 경로를 지정합니다.
+    # 앱과 함께 배포된 폰트 파일을 직접 사용하도록 경로를 지정
     try:
         nanum_gothic_path = 'fonts/NanumGothic.ttf'
         nanum_gothic_bold_path = 'fonts/NanumGothicBold.ttf'
@@ -35,7 +34,6 @@ def generate_pdf(state, chart_image):
         pdf.add_font('NanumGothic', 'B', nanum_gothic_bold_path, uni=True)
         
     except Exception as e:
-        # 폰트 파일이 없을 경우를 대비한 에러 메시지
         st.error(f"폰트 파일을 찾을 수 없습니다. 'fonts' 폴더에 NanumGothic.ttf와 NanumGothicBold.ttf 파일이 있는지 확인해주세요. 오류: {e}")
         return None
 
@@ -104,11 +102,12 @@ def generate_pdf(state, chart_image):
     pdf.multi_cell(0, 10, state.case3, border=1)
     pdf.ln(10)
     
-    # 6. 차트 이미지
+    # 6. 차트 이미지 (오류 수정)
     pdf.set_font('NanumGothic', 'B', 18)
     pdf.cell(0, 10, '📊 초기 수사 계획 분포도', ln=True, border='B', align='C')
     pdf.ln(5)
-    pdf.image(chart_image, x = 10, w=pdf.w - 20)
+    # image 메소드에 type='PNG'를 명시하여 메모리 내 이미지임을 알려줍니다.
+    pdf.image(chart_image, x = 10, w=pdf.w - 20, type='PNG')
 
     return pdf.output(dest='S').encode('latin-1')
 
@@ -217,3 +216,4 @@ if st.button("보고서 PDF 생성"):
         href = f'<a href="data:application/octet-stream;base64,{b64}" download="{file_name}" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1d4ed8; color: white; text-decoration: none; border-radius: 0.375rem; font-weight: bold;">📂 보고서 PDF 다운로드</a>'
         st.markdown(href, unsafe_allow_html=True)
         st.caption("링크를 클릭하여 지금까지 작성한 내용을 PDF 파일로 다운로드하세요.")
+
