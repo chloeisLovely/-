@@ -1,10 +1,8 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import koreanize_matplotlib
-from fpdf import FPDF
-import os
-import tempfile
-import base64
+from io import BytesIO
+import textwrap
 
 # --- 페이지 설정 ---
 st.set_page_config(
@@ -13,112 +11,84 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- PDF 생성을 위한 클래스 ---
-class PDF(FPDF):
-    def header(self):
-        pass
+# --- 보고서 이미지 생성 함수 (PDF 대체, 최종 오류 해결 버전) ---
+def generate_report_image(state, chart_fig):
+    """
+    입력된 모든 정보와 차트를 포함하는 단일 보고서 이미지를 생성합니다.
+    """
+    # A4 비율에 가깝게 이미지 크기 설정 (가로 8.27인치, 세로 11.69인치)
+    fig = plt.figure(figsize=(8.27, 11.69), dpi=150)
+    fig.patch.set_facecolor('white') # 배경색 흰색
 
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('NanumGothic', '', 8)
-        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+    # 전체 제목
+    fig.suptitle("📂 데이터 탐정단 공식 설립 보고서", fontsize=22, weight='bold', y=0.97)
+    plt.figtext(0.5, 0.93, "[TOP SECRET - 대외비]", ha="center", fontsize=14, color='#be123c', weight='bold')
 
-# --- PDF 생성 함수 (최종 오류 해결 버전) ---
-def generate_pdf(state, fig):
-    pdf = PDF()
+    # y_pos: 텍스트를 그릴 현재 y 위치 (1.0이 맨 위, 0.0이 맨 아래)
+    y_pos = 0.88
 
-    # 앱과 함께 배포된 폰트 파일을 직접 사용하도록 경로를 지정합니다.
-    try:
-        nanum_gothic_path = 'fonts/NanumGothic.ttf'
-        nanum_gothic_bold_path = 'fonts/NanumGothicBold.ttf'
+    # --- 1. 프로필 ---
+    plt.figtext(0.1, y_pos, "1. 우리 탐정 사무소 프로필", fontsize=18, weight='bold', ha='left')
+    y_pos -= 0.05
+    plt.figtext(0.1, y_pos, f"🕵️‍♂️ 사무소 이름 (Codename): {state.get('agency_name', '입력되지 않음')}", fontsize=12, ha='left')
+    y_pos -= 0.04
+    plt.figtext(0.1, y_pos, f"🗣️ 우리 팀의 구호 (Slogan): {state.get('agency_slogan', '입력되지 않음')}", fontsize=12, ha='left')
+    y_pos -= 0.06
 
-        pdf.add_font('NanumGothic', '', nanum_gothic_path, uni=True)
-        pdf.add_font('NanumGothic', 'B', nanum_gothic_bold_path, uni=True)
-    except Exception as e:
-        st.error(f"폰트 파일을 찾을 수 없습니다. 'fonts' 폴더에 NanumGothic.ttf와 NanumGothicBold.ttf 파일이 있는지 확인해주세요. 오류: {e}")
-        return None
-
-    pdf.add_page()
-    
-    # 보고서 내용 생성 (UTF-8 인코딩 명시)
-    def write_cell(font_style, text):
-        pdf.set_font('NanumGothic', font_style, 12)
-        # 텍스트를 UTF-8로 인코딩하여 처리
-        pdf.multi_cell(0, 10, text.encode('utf-8').decode('latin-1'), border=1)
-
-    pdf.set_font('NanumGothic', 'B', 24)
-    pdf.cell(0, 15, '📂 데이터 탐정단 공식 설립 보고서', border=1, ln=True, align='C')
-    pdf.set_font('NanumGothic', 'B', 14)
-    pdf.set_text_color(190, 18, 60)
-    pdf.cell(0, 10, '[TOP SECRET - 대외비]', ln=True, align='C')
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(10)
-
-    pdf.set_font('NanumGothic', 'B', 18)
-    pdf.cell(0, 10, '1. 우리 탐정 사무소 프로필', ln=True, border='B')
-    pdf.ln(5)
-    pdf.set_font('NanumGothic', 'B', 12)
-    pdf.cell(60, 10, '🕵️‍♂️ 사무소 이름 (Codename)', border=1)
-    pdf.set_font('NanumGothic', '', 12)
-    pdf.cell(0, 10, state.get('agency_name', ''), border=1, ln=True)
-    pdf.set_font('NanumGothic', 'B', 12)
-    pdf.cell(60, 10, '🗣️ 우리 팀의 구호 (Slogan)', border=1)
-    pdf.set_font('NanumGothic', '', 12)
-    pdf.cell(0, 10, state.get('agency_slogan', ''), border=1, ln=True)
-    pdf.ln(10)
-
-    pdf.set_font('NanumGothic', 'B', 18)
-    pdf.cell(0, 10, '👥 소속 탐정 및 역할', ln=True, border='B')
-    pdf.ln(5)
-    pdf.set_font('NanumGothic', 'B', 12)
-    pdf.cell(95, 10, '이름', border=1, align='C')
-    pdf.cell(95, 10, '역할', border=1, align='C', ln=True)
-    pdf.set_font('NanumGothic', '', 12)
+    # --- 2. 팀원 ---
+    plt.figtext(0.1, y_pos, "👥 소속 탐정 및 역할", fontsize=18, weight='bold', ha='left')
+    y_pos -= 0.05
     for member in state.get('members', []):
-        pdf.cell(95, 10, member.get('name', ''), border=1)
-        pdf.cell(95, 10, member.get('role', ''), border=1, ln=True)
-    pdf.ln(10)
-    
-    pdf.set_font('NanumGothic', 'B', 18)
-    pdf.cell(0, 10, '2. 데이터 탐정 윤리 강령 서약', ln=True, border='B')
-    pdf.ln(5)
-    pdf.set_font('NanumGothic', '', 12)
-    pdf.multi_cell(0, 8, "제1조: 우리는 개인의 사생활을 캐지 않으며, 친구의 비밀을 존중한다.\n제2조: 우리는 오직 모두를 위한 해결책을 찾기 위해, 주인이 누군지 알 수 없는 '익명의 데이터'만을 다룬다.")
-    pdf.set_font('NanumGothic', 'B', 12)
+        plt.figtext(0.12, y_pos, f"• {member.get('name', '이름 없음')} ({member.get('role', '역할 없음')})", fontsize=12, ha='left')
+        y_pos -= 0.03
+    y_pos -= 0.03
+
+    # --- 3. 윤리 강령 ---
+    plt.figtext(0.1, y_pos, "2. 데이터 탐정 윤리 강령 서약", fontsize=18, weight='bold', ha='left')
+    y_pos -= 0.05
     pledge_text = '✔️ 서약함' if state.get('pledged', False) else '❌ 서약하지 않음'
-    pdf.cell(0, 10, f'서약 여부: {pledge_text}', ln=True)
-    pdf.ln(10)
+    plt.figtext(0.12, y_pos, f"서약 여부: {pledge_text}", fontsize=12, weight='bold', ha='left')
+    y_pos -= 0.06
 
-    pdf.set_font('NanumGothic', 'B', 18)
-    pdf.cell(0, 10, '3. 초기 수사 계획', ln=True, border='B')
-    pdf.ln(5)
-    pdf.set_font('NanumGothic', 'B', 12)
-    pdf.cell(60, 10, '영역', border=1, align='C')
-    pdf.cell(0, 10, '계획 내용', border=1, align='C', ln=True)
-    pdf.set_font('NanumGothic', '', 12)
-    pdf.cell(60, 10, '🍚 급식/식사', border=1)
-    write_cell('', state.get('case1', ''))
-    pdf.cell(60, 10, '📚 학습/수업', border=1)
-    write_cell('', state.get('case2', ''))
-    pdf.cell(60, 10, '🛡️ 시설/안전', border=1)
-    write_cell('', state.get('case3', ''))
-    pdf.ln(10)
+    # --- 4. 수사 계획 ---
+    plt.figtext(0.1, y_pos, "3. 초기 수사 계획", fontsize=18, weight='bold', ha='left')
+    y_pos -= 0.02
     
-    pdf.set_font('NanumGothic', 'B', 18)
-    pdf.cell(0, 10, '📊 초기 수사 계획 분포도', ln=True, border='B', align='C')
-    pdf.ln(5)
-
-    # 차트 이미지를 임시 파일로 저장하고 그 파일 경로를 사용하여 PDF에 삽입합니다.
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-        fig.savefig(tmpfile.name, format="png", bbox_inches='tight', dpi=150)
-        chart_image_path = tmpfile.name
+    plans = [
+        f"🍚 급식/식사: {state.get('case1', '계획 없음')}",
+        f"📚 학습/수업: {state.get('case2', '계획 없음')}",
+        f"🛡️ 시설/안전: {state.get('case3', '계획 없음')}"
+    ]
     
-    try:
-        pdf.image(chart_image_path, x=10, w=pdf.w - 20)
-    finally:
-        os.remove(chart_image_path) # 사용이 끝난 임시 파일을 삭제합니다.
+    for plan in plans:
+        # 긴 텍스트가 이미지를 넘어가지 않도록 자동으로 줄바꿈 처리
+        wrapped_text = "\n".join(textwrap.wrap(plan, width=75))
+        plt.figtext(0.12, y_pos, wrapped_text, fontsize=12, va='top', ha='left')
+        y_pos -= (wrapped_text.count('\n') + 1) * 0.02 + 0.02
 
-    return pdf.output(dest='S')
+    # --- 5. 차트 삽입 ---
+    plt.figtext(0.5, y_pos, "📊 초기 수사 계획 분포도", ha="center", fontsize=18, weight='bold')
+    y_pos -= 0.01
+    
+    # 차트 이미지를 임시 버퍼에 저장
+    chart_buf = BytesIO()
+    chart_fig.savefig(chart_buf, format='png', bbox_inches='tight', dpi=150)
+    chart_buf.seek(0)
+
+    # 이미지 삽입을 위한 축(axes) 생성. [left, bottom, width, height]
+    chart_ax = fig.add_axes([0.15, 0.05, 0.7, 0.3]) 
+    img = plt.imread(chart_buf)
+    chart_ax.imshow(img)
+    chart_ax.axis('off') # 불필요한 축 숨기기
+
+    # 최종 보고서 이미지를 바이트로 변환하여 반환
+    img_buf = BytesIO()
+    fig.savefig(img_buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    plt.close(chart_fig)
+    img_buf.seek(0)
+    
+    return img_buf
 
 # --- 세션 상태 초기화 ---
 if 'members' not in st.session_state:
@@ -126,7 +96,7 @@ if 'members' not in st.session_state:
 
 # --- UI 그리기 ---
 st.title("📂 데이터 탐정단 공식 설립 보고서")
-st.markdown("<p class='top-secret' style='text-align:center; color: #be123c; font-weight:700;'>[TOP SECRET - 대외비]</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color: #be123c; font-weight:700;'>[TOP SECRET - 대외비]</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 with st.container():
@@ -176,40 +146,42 @@ with col1:
     st.session_state.case2 = st.text_area("📚 학습/수업 영역", st.session_state.get('case2', ''), placeholder="예: 도서관에 신간이 부족하다")
     st.session_state.case3 = st.text_area("🛡️ 시설/안전 영역", st.session_state.get('case3', ''), placeholder="예: 복도에서 뛰는 학생이 많아 위험하다")
 
+# 차트 생성을 별도의 fig 객체로 관리
+chart_fig, ax = plt.subplots(figsize=(5, 5))
+labels = ['급식/식사', '학습/수업', '시설/안전']
+sizes = [
+    1 if len(st.session_state.case1.strip()) > 0 else 0,
+    1 if len(st.session_state.case2.strip()) > 0 else 0,
+    1 if len(st.session_state.case3.strip()) > 0 else 0,
+]
+colors = [(22/255, 163/255, 74/255, 0.7), (2/255, 132/255, 199/255, 0.7), (185/255, 28/255, 28/255, 0.7)]
+
+if sum(sizes) > 0:
+    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=colors, wedgeprops=dict(width=0.4))
+else:
+    ax.pie([1], labels=['계획 없음'], colors=['#e5e7eb'])
+ax.axis('equal')
+
 with col2:
     st.subheader("📊 초기 수사 계획 분포도")
     st.markdown("우리의 수사 계획이 각 영역에 어떻게 분포되어 있는지 한눈에 확인해 보세요!")
+    st.pyplot(chart_fig)
 
-    labels = ['급식/식사', '학습/수업', '시설/안전']
-    sizes = [
-        1 if len(st.session_state.case1.strip()) > 0 else 0,
-        1 if len(st.session_state.case2.strip()) > 0 else 0,
-        1 if len(st.session_state.case3.strip()) > 0 else 0,
-    ]
-    colors = [(22/255, 163/255, 74/255, 0.7), (2/255, 132/255, 199/255, 0.7), (185/255, 28/255, 28/255, 0.7)]
-    
-    fig, ax = plt.subplots()
-    
-    if sum(sizes) > 0:
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=colors, wedgeprops=dict(width=0.4))
-    else:
-        ax.pie([1], labels=['계획 없음'], colors=['#e5e7eb'])
-
-    ax.axis('equal')
-    st.pyplot(fig)
 
 st.markdown("---")
 st.header("보고서 저장")
 
-if st.button("보고서 PDF 생성"):
-    with st.spinner('보고서 PDF 파일을 생성 중입니다... 잠시만 기다려주세요.'):
-        pdf_bytes = generate_pdf(st.session_state, fig)
+# --- 보고서 이미지 다운로드 버튼 ---
+if st.button("보고서 이미지로 저장"):
+    with st.spinner('보고서 이미지를 생성 중입니다...'):
+        image_bytes = generate_report_image(st.session_state, chart_fig)
         
-        if pdf_bytes:
-            file_name = f"{st.session_state.agency_name}_설립보고서.pdf" if st.session_state.agency_name else "탐정단_설립보고서.pdf"
+        if image_bytes:
+            file_name = f"{st.session_state.agency_name}_설립보고서.png" if st.session_state.agency_name else "탐정단_설립보고서.png"
             st.download_button(
-                label="📂 보고서 PDF 다운로드",
-                data=pdf_bytes,
+                label="🖼️ 보고서 이미지 다운로드",
+                data=image_bytes,
                 file_name=file_name,
-                mime="application/pdf"
+                mime="image/png"
             )
+
