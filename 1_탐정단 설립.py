@@ -25,24 +25,19 @@ class PDF(FPDF):
 def generate_pdf(state, chart_image):
     pdf = PDF()
     
-    # 한글 폰트 추가 (오류 수정)
+    # --- 한글 폰트 추가 (오류 수정) ---
+    # 앱과 함께 배포된 폰트 파일을 직접 사용하도록 경로를 지정합니다.
     try:
-        import koreanize_matplotlib
-        # 폰트 파일이 있는 디렉토리 경로를 가져옴
-        font_dir = os.path.dirname(koreanize_matplotlib.get_font_path())
-        
-        # 일반 폰트와 볼드 폰트의 전체 경로를 지정
-        nanum_gothic_path = os.path.join(font_dir, 'NanumGothic.ttf')
-        nanum_gothic_bold_path = os.path.join(font_dir, 'NanumGothicBold.ttf')
+        nanum_gothic_path = 'fonts/NanumGothic.ttf'
+        nanum_gothic_bold_path = 'fonts/NanumGothicBold.ttf'
 
-        # FPDF에 각 폰트 스타일을 명시적으로 추가
         pdf.add_font('NanumGothic', '', nanum_gothic_path, uni=True)
         pdf.add_font('NanumGothic', 'B', nanum_gothic_bold_path, uni=True)
         
     except Exception as e:
-        st.error(f"한글 폰트를 로드하는 데 실패했습니다. PDF 생성이 어려울 수 있습니다. 오류: {e}")
-        # 대체 폰트 설정 (한글 깨짐)
-        pdf.set_font("Arial", size=12)
+        # 폰트 파일이 없을 경우를 대비한 에러 메시지
+        st.error(f"폰트 파일을 찾을 수 없습니다. 'fonts' 폴더에 NanumGothic.ttf와 NanumGothicBold.ttf 파일이 있는지 확인해주세요. 오류: {e}")
+        return None
 
     pdf.add_page()
     
@@ -119,6 +114,19 @@ def generate_pdf(state, chart_image):
 
 if 'members' not in st.session_state:
     st.session_state.members = [{'name': '', 'role': '기록 탐정'}]
+if 'agency_name' not in st.session_state:
+    st.session_state.agency_name = ""
+if 'agency_slogan' not in st.session_state:
+    st.session_state.agency_slogan = ""
+if 'pledged' not in st.session_state:
+    st.session_state.pledged = False
+if 'case1' not in st.session_state:
+    st.session_state.case1 = ""
+if 'case2' not in st.session_state:
+    st.session_state.case2 = ""
+if 'case3' not in st.session_state:
+    st.session_state.case3 = ""
+
 
 st.title("📂 데이터 탐정단 공식 설립 보고서")
 st.markdown("<p class='top-secret' style='text-align:center; color: #be123c; font-weight:700;'>[TOP SECRET - 대외비]</p>", unsafe_allow_html=True)
@@ -126,8 +134,8 @@ st.markdown("---")
 
 with st.container():
     st.header("1. 우리 탐정 사무소 프로필")
-    st.session_state.agency_name = st.text_input("🕵️‍♂️ 사무소 이름 (Codename)", placeholder="우리 팀의 멋진 코드네임을 여기에!")
-    st.session_state.agency_slogan = st.text_input("🗣️ 우리 팀의 구호 (Slogan)", placeholder="우리 팀의 각오가 담긴 구호를 여기에!")
+    st.session_state.agency_name = st.text_input("🕵️‍♂️ 사무소 이름 (Codename)", value=st.session_state.agency_name, placeholder="우리 팀의 멋진 코드네임을 여기에!")
+    st.session_state.agency_slogan = st.text_input("🗣️ 우리 팀의 구호 (Slogan)", value=st.session_state.agency_slogan, placeholder="우리 팀의 각오가 담긴 구호를 여기에!")
 
 with st.container():
     st.header("👥 소속 탐정 및 역할")
@@ -157,7 +165,7 @@ with st.container():
     **제1조:** 우리는 개인의 사생활을 캐지 않으며, 친구의 비밀을 존중한다.  
     **제2조:** 우리는 오직 모두를 위한 해결책을 찾기 위해, 주인이 누군지 알 수 없는 '익명의 데이터'만을 다룬다.
     """)
-    st.session_state.pledged = st.checkbox("위 강령을 준수하며, 오직 진실과 우리 학교의 발전을 위해 데이터를 사용할 것을 서약합니다.")
+    st.session_state.pledged = st.checkbox("위 강령을 준수하며, 오직 진실과 우리 학교의 발전을 위해 데이터를 사용할 것을 서약합니다.", value=st.session_state.pledged)
 
 st.markdown("---")
 st.header("3. 초기 수사 계획")
@@ -167,9 +175,9 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("사건 계획 수립")
     st.markdown("우리 학교를 1% 더 좋게 만들기 위해, 어떤 사건들을 수사할지 계획해 봅시다.")
-    st.session_state.case1 = st.text_area("🍚 급식/식사 영역", placeholder="예: 급식 줄이 너무 길다")
-    st.session_state.case2 = st.text_area("📚 학습/수업 영역", placeholder="예: 도서관에 신간이 부족하다")
-    st.session_state.case3 = st.text_area("🛡️ 시설/안전 영역", placeholder="예: 복도에서 뛰는 학생이 많아 위험하다")
+    st.session_state.case1 = st.text_area("🍚 급식/식사 영역", value=st.session_state.case1, placeholder="예: 급식 줄이 너무 길다")
+    st.session_state.case2 = st.text_area("📚 학습/수업 영역", value=st.session_state.case2, placeholder="예: 도서관에 신간이 부족하다")
+    st.session_state.case3 = st.text_area("🛡️ 시설/안전 영역", value=st.session_state.case3, placeholder="예: 복도에서 뛰는 학생이 많아 위험하다")
 
 with col2:
     st.subheader("📊 초기 수사 계획 분포도")
@@ -177,9 +185,9 @@ with col2:
 
     labels = ['급식/식사', '학습/수업', '시설/안전']
     sizes = [
-        1 if len(st.session_state.get('case1', '').strip()) > 0 else 0,
-        1 if len(st.session_state.get('case2', '').strip()) > 0 else 0,
-        1 if len(st.session_state.get('case3', '').strip()) > 0 else 0,
+        1 if len(st.session_state.case1.strip()) > 0 else 0,
+        1 if len(st.session_state.case2.strip()) > 0 else 0,
+        1 if len(st.session_state.case3.strip()) > 0 else 0,
     ]
     colors = [(22/255, 163/255, 74/255, 0.7), (2/255, 132/255, 199/255, 0.7), (185/255, 28/255, 28/255, 0.7)]
     
@@ -200,6 +208,12 @@ st.markdown("---")
 st.header("보고서 저장")
 
 if st.button("보고서 PDF 생성"):
-    # buf의 현재 위치를 처음으로 되돌림
     buf.seek(0)
     pdf_bytes = generate_pdf(st.session_state, buf)
+    
+    if pdf_bytes:
+        b64 = base64.b64encode(pdf_bytes).decode()
+        file_name = f"{st.session_state.agency_name}_설립보고서.pdf" if st.session_state.agency_name else "탐정단_설립보고서.pdf"
+        href = f'<a href="data:application/octet-stream;base64,{b64}" download="{file_name}" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1d4ed8; color: white; text-decoration: none; border-radius: 0.375rem; font-weight: bold;">📂 보고서 PDF 다운로드</a>'
+        st.markdown(href, unsafe_allow_html=True)
+        st.caption("링크를 클릭하여 지금까지 작성한 내용을 PDF 파일로 다운로드하세요.")
