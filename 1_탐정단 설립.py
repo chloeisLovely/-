@@ -213,4 +213,3 @@ if st.button("보고서 PDF 생성"):
                 file_name=file_name,
                 mime="application/pdf"
             )
-
