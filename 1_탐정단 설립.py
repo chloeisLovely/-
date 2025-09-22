@@ -23,7 +23,7 @@ class PDF(FPDF):
         self.set_font('NanumGothic', '', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-# --- PDF 생성 함수 (오류 해결 버전) ---
+# --- PDF 생성 함수 (최종 오류 해결 버전) ---
 def generate_pdf(state, fig):
     pdf = PDF()
 
@@ -40,6 +40,11 @@ def generate_pdf(state, fig):
 
     pdf.add_page()
     
+    # 보고서 내용 생성 (UTF-8 인코딩 명시)
+    def write_cell(font_style, text):
+        pdf.set_font('NanumGothic', font_style, 12)
+        pdf.multi_cell(0, 10, text.encode('latin-1', 'replace').decode('latin-1'), border=1)
+
     pdf.set_font('NanumGothic', 'B', 24)
     pdf.cell(0, 15, '📂 데이터 탐정단 공식 설립 보고서', border=1, ln=True, align='C')
     pdf.set_font('NanumGothic', 'B', 14)
@@ -91,18 +96,17 @@ def generate_pdf(state, fig):
     pdf.cell(0, 10, '계획 내용', border=1, align='C', ln=True)
     pdf.set_font('NanumGothic', '', 12)
     pdf.cell(60, 10, '🍚 급식/식사', border=1)
-    pdf.multi_cell(0, 10, state.get('case1', ''), border=1)
+    write_cell('', state.get('case1', ''))
     pdf.cell(60, 10, '📚 학습/수업', border=1)
-    pdf.multi_cell(0, 10, state.get('case2', ''), border=1)
+    write_cell('', state.get('case2', ''))
     pdf.cell(60, 10, '🛡️ 시설/안전', border=1)
-    pdf.multi_cell(0, 10, state.get('case3', ''), border=1)
+    write_cell('', state.get('case3', ''))
     pdf.ln(10)
     
     pdf.set_font('NanumGothic', 'B', 18)
     pdf.cell(0, 10, '📊 초기 수사 계획 분포도', ln=True, border='B', align='C')
     pdf.ln(5)
 
-    # --- 최종 오류 해결 부분 ---
     # 차트 이미지를 임시 파일로 저장하고 그 파일 경로를 사용하여 PDF에 삽입합니다.
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
         fig.savefig(tmpfile.name, format="png", bbox_inches='tight', dpi=150)
