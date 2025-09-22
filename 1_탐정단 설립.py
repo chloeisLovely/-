@@ -26,16 +26,12 @@ def generate_pdf(state, chart_image):
     
     # 한글 폰트 추가
     try:
-        # koreanize_matplotlib이 캐시한 폰트 경로를 사용하거나 직접 경로를 지정해야 합니다.
-        # Streamlit Cloud 배포 시에는 폰트 파일을 함께 업로드해야 합니다.
-        # 여기서는 koreanize_matplotlib이 설치한 폰트를 사용하도록 시도합니다.
         import koreanize_matplotlib
         font_path = koreanize_matplotlib.get_font_path()
         pdf.add_font('NanumGothic', '', font_path, uni=True)
         pdf.add_font('NanumGothic', 'B', font_path, uni=True)
     except Exception as e:
         st.error(f"한글 폰트를 로드하는 데 실패했습니다. PDF 생성이 어려울 수 있습니다. 오류: {e}")
-        # 대체 폰트 설정 (한글 깨짐)
         pdf.set_font("Arial", size=12)
 
     pdf.add_page()
@@ -109,27 +105,20 @@ def generate_pdf(state, chart_image):
     pdf.ln(5)
     pdf.image(chart_image, x = 10, w=pdf.w - 20)
 
-    # PDF를 바이트로 반환
     return pdf.output(dest='S').encode('latin-1')
 
-# --- 세션 상태 초기화 ---
 if 'members' not in st.session_state:
     st.session_state.members = [{'name': '', 'role': '기록 탐정'}]
 
-# --- UI 그리기 ---
 st.title("📂 데이터 탐정단 공식 설립 보고서")
 st.markdown("<p class='top-secret' style='text-align:center; color: #be123c; font-weight:700;'>[TOP SECRET - 대외비]</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-
-# --- 1. 프로필 섹션 ---
 with st.container():
     st.header("1. 우리 탐정 사무소 프로필")
     st.session_state.agency_name = st.text_input("🕵️‍♂️ 사무소 이름 (Codename)", placeholder="우리 팀의 멋진 코드네임을 여기에!")
     st.session_state.agency_slogan = st.text_input("🗣️ 우리 팀의 구호 (Slogan)", placeholder="우리 팀의 각오가 담긴 구호를 여기에!")
 
-
-# --- 2. 팀원 섹션 ---
 with st.container():
     st.header("👥 소속 탐정 및 역할")
     
@@ -152,8 +141,6 @@ with st.container():
         else:
             st.warning("최대 5명의 탐정까지 추가할 수 있습니다.")
 
-
-# --- 3. 윤리 강령 섹션 ---
 with st.container():
     st.header("2. 데이터 탐정 윤리 강령 서약")
     st.info("""
@@ -162,7 +149,6 @@ with st.container():
     """)
     st.session_state.pledged = st.checkbox("위 강령을 준수하며, 오직 진실과 우리 학교의 발전을 위해 데이터를 사용할 것을 서약합니다.")
 
-# --- 4. 수사 계획 및 차트 섹션 ---
 st.markdown("---")
 st.header("3. 초기 수사 계획")
 
@@ -179,16 +165,15 @@ with col2:
     st.subheader("📊 초기 수사 계획 분포도")
     st.markdown("우리의 수사 계획이 각 영역에 어떻게 분포되어 있는지 한눈에 확인해 보세요!")
 
-    # 차트 데이터 생성
     labels = ['급식/식사', '학습/수업', '시설/안전']
     sizes = [
-        1 if len(st.session_state.case1.strip()) > 0 else 0,
-        1 if len(st.session_state.case2.strip()) > 0 else 0,
-        1 if len(st.session_state.case3.strip()) > 0 else 0,
+        1 if len(st.session_state.get('case1', '').strip()) > 0 else 0,
+        1 if len(st.session_state.get('case2', '').strip()) > 0 else 0,
+        1 if len(st.session_state.get('case3', '').strip()) > 0 else 0,
     ]
-    colors = ['rgba(22, 163, 74, 0.7)', 'rgba(2, 132, 199, 0.7)', 'rgba(185, 28, 28, 0.7)']
+    # 색상 값을 RGBA 튜플 형태로 변경 (0-1 범위)
+    colors = [(22/255, 163/255, 74/255, 0.7), (2/255, 132/255, 199/255, 0.7), (185/255, 28/255, 28/255, 0.7)]
     
-    # Matplotlib으로 도넛 차트 그리기
     fig, ax = plt.subplots()
     
     if sum(sizes) > 0:
@@ -196,26 +181,20 @@ with col2:
     else:
         ax.pie([1], labels=['계획 없음'], colors=['#e5e7eb'])
 
-    ax.axis('equal')  # 원형 유지
+    ax.axis('equal')
     
-    # 차트를 이미지로 변환
     buf = BytesIO()
     fig.savefig(buf, format="png", bbox_inches='tight')
     st.image(buf)
 
-
-# --- PDF 다운로드 버튼 ---
 st.markdown("---")
 st.header("보고서 저장")
 
-# PDF 생성
-pdf_bytes = generate_pdf(st.session_state, buf)
+if st.button("보고서 PDF 생성"):
+    pdf_bytes = generate_pdf(st.session_state, buf)
+    
+    b64 = base64.b64encode(pdf_bytes).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{st.session_state.agency_name}_설립보고서.pdf" style="display: inline-block; padding: 0.5rem 1rem; background-color: #1d4ed8; color: white; text-decoration: none; border-radius: 0.375rem; font-weight: bold;">📂 보고서 PDF 다운로드</a>'
+    st.markdown(href, unsafe_allow_html=True)
+    st.caption("링크를 클릭하여 지금까지 작성한 내용을 PDF 파일로 다운로드하세요.")
 
-# 다운로드 버튼
-st.download_button(
-    label="📂 Google Docs로 저장하기 (PDF)",
-    data=pdf_bytes,
-    file_name=f"{st.session_state.agency_name}_설립보고서.pdf" if st.session_state.agency_name else "탐정단_설립보고서.pdf",
-    mime="application/pdf",
-)
-st.caption("버튼을 눌러 지금까지 작성한 내용을 PDF 파일로 다운로드하세요. 이 파일을 구글 드라이브에 올리거나 내용을 복사하여 구글 독스에서 사용할 수 있습니다.")
